@@ -64,8 +64,9 @@ function startTracking() {
 }
 
 // ✅ Distance formula
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
+  const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
 
@@ -81,6 +82,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 // ✅ Search + Distance + Time
+
 function searchLocation() {
   let place = document.getElementById("destination").value;
 
@@ -91,24 +93,26 @@ function searchLocation() {
       let destLon = parseFloat(data[0].lon);
 
       L.marker([destLat, destLon]).addTo(map);
+      map.setView([destLat, destLon], 13);
 
- map.setView([destLat, destLon], 13);
-
-      // ✅ Calculate only if GPS started
+      // ✅ Important check
       if (marker) {
         let userLat = marker.getLatLng().lat;
         let userLon = marker.getLatLng().lng;
 
         let dist = calculateDistance(userLat, userLon, destLat, destLon);
+        let time = (dist / 40) * 60; // minutes
 
-        let time = dist / 40; // 40 km/h speed
-
-        document.getElementById("distance").innerText =
-          `📏 Distance: ${dist.toFixed(2)} km | ⏱ Time: ${(time * 60).toFixed(0)} mins`;
+        document.getElementById("distance").innerHTML =
+          "📏 Distance: " + dist.toFixed(2) + " km | ⏱ Time: " + time.toFixed(0) + " mins";
       } else {
-        document.getElementById("distance").innerText =
-          "⚠️ Start GPS first!";
+        document.getElementById("distance").innerHTML =
+          "⚠️ Please click 'Start GPS' first";
       }
+    })
+    .catch(() => {
+      document.getElementById("distance").innerHTML =
+        "❌ Location not found";
     });
 }
 
