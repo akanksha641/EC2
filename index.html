@@ -20,13 +20,20 @@
 
 <h2>🚍 SafeRide App</h2>
 
+<!-- ✅ Destination -->
 <input type="text" id="destination" placeholder="Enter destination">
 <button onclick="searchLocation()">🔍 Search</button>
 
 <br>
 
+<!-- ✅ Family number -->
+<input type="text" id="familyNumber" placeholder="Enter family phone number">
+
+<br>
+
 <button onclick="startTracking()">📍 Start GPS</button>
 <button onclick="sendEmergency()">🚨 SOS</button>
+<button onclick="callFamily()">📞 Call</button>
 
 <p id="info"></p>
 <p id="distance"></p>
@@ -116,10 +123,34 @@ function searchLocation() {
     });
 }
 
-// ✅ Emergency
+
+// ✅ SOS SMS
 function sendEmergency() {
-  alert("🚨 Emergency alert sent!");
+  let number = document.getElementById("familyNumber").value;
+
+  if (!number) {
+    alert("⚠️ Enter family number");
+    return;
+  }
+
+  let message = "🚨 Emergency! I need help. Please contact me.";
+
+  window.location.href = `sms:${number}?body=${encodeURIComponent(message)}`;
 }
+
+// ✅ Call
+function callFamily() {
+  let number = document.getElementById("familyNumber").value;
+
+  if (!number) {
+    alert("⚠️ Enter family number");
+    return;
+  }
+
+  window.location.href = `tel:${number}`;
+}
+
+
 </script>
 
 </body>
