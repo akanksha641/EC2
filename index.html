@@ -5,12 +5,14 @@
   <title>SafeRide App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- ✅ Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
     body { font-family: Arial; text-align: center; }
-    #map { height: 400px; }
+    #map { height: 400px; margin-top: 10px; }
     button { padding: 10px; margin: 5px; }
+    input { padding: 8px; }
   </style>
 </head>
 
@@ -20,24 +22,29 @@
 
 <input type="text" id="destination" placeholder="Enter destination">
 <button onclick="searchLocation()">🔍 Search</button>
+
 <br>
 
 <button onclick="startTracking()">📍 Start GPS</button>
 <button onclick="sendEmergency()">🚨 SOS</button>
 
 <p id="info"></p>
+<p id="distance"></p>
 
 <div id="map"></div>
 
+<!-- ✅ Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 let map = L.map('map').setView([20, 78], 5);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
 let marker;
 
+// ✅ Map tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+}).addTo(map);
+
+// ✅ Start GPS tracking
 function startTracking() {
   navigator.geolocation.watchPosition(pos => {
     let lat = pos.coords.latitude;
@@ -56,22 +63,58 @@ function startTracking() {
   });
 }
 
+// ✅ Distance formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// ✅ Search + Distance + Time
 function searchLocation() {
   let place = document.getElementById("destination").value;
 
   fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`)
     .then(res => res.json())
     .then(data => {
-      let lat = data[0].lat;
-      let lon = data[0].lon;
+      let destLat = parseFloat(data[0].lat);
+      let destLon = parseFloat(data[0].lon);
 
-      L.marker([lat, lon]).addTo(map);
-      map.setView([lat, lon], 13);
+      L.marker([destLat, destLon]).addTo(map);
+
+ map.setView([destLat, destLon], 13);
+
+      // ✅ Calculate only if GPS started
+      if (marker) {
+        let userLat = marker.getLatLng().lat;
+        let userLon = marker.getLatLng().lng;
+
+        let dist = calculateDistance(userLat, userLon, destLat, destLon);
+
+        let time = dist / 40; // 40 km/h speed
+
+        document.getElementById("distance").innerText =
+          `📏 Distance: ${dist.toFixed(2)} km | ⏱ Time: ${(time * 60).toFixed(0)} mins`;
+      } else {
+        document.getElementById("distance").innerText =
+          "⚠️ Start GPS first!";
+      }
     });
 }
 
+// ✅ Emergency
 function sendEmergency() {
-  alert("🚨 Emergency sent!");
+  alert("🚨 Emergency alert sent!");
 }
 </script>
 
