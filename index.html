@@ -2,154 +2,178 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SafeRide App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SafeRide App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ✅ Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-  <style>
-    body { font-family: Arial; text-align: center; }
-    #map { height: 400px; margin-top: 10px; }
-    button { padding: 10px; margin: 5px; }
-    input { padding: 8px; }
-  </style>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial;
+        }
+
+        #map {
+            height: 400px;
+            margin-top: 10px;
+        }
+
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+    </style>
 </head>
 
 <body>
 
-<h2>🚍 SafeRide App</h2>
+<h2>🚌 SafeRide App</h2>
 
-<!-- ✅ Destination -->
-<input type="text" id="destination" placeholder="Enter destination">
-<button onclick="searchLocation()">🔍 Search</button>
+<input type="text" id="searchBox" placeholder="Enter destination">
+<button onclick="searchLocation()">🔍 Search</button><br>
 
-<br>
+<input type="text" id="familyNumber" placeholder="Enter family phone number"><br>
 
-<!-- ✅ Family number -->
-<input type="text" id="familyNumber" placeholder="Enter family phone number">
-
-<br>
-
-<button onclick="startTracking()">📍 Start GPS</button>
+<button onclick="startGPS()">📍 Start GPS</button>
 <button onclick="sendEmergency()">🚨 SOS</button>
 <button onclick="callFamily()">📞 Call</button>
 
-<p id="info"></p>
+<p id="location">📍 Location: Not started</p>
+<p id="status"></p>
 <p id="distance"></p>
 
 <div id="map"></div>
 
-<!-- ✅ Leaflet JS -->
+<!-- JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-let map = L.map('map').setView([20, 78], 5);
-let marker;
+let map = L.map('map').setView([17.385044, 78.486671], 12);
 
-// ✅ Map tiles
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
 }).addTo(map);
 
-// ✅ Start GPS tracking
-function startTracking() {
-  navigator.geolocation.watchPosition(pos => {
-    let lat = pos.coords.latitude;
-    let lon = pos.coords.longitude;
+let currentLat, currentLon;
+let userMarker, destMarker;
 
-    map.setView([lat, lon], 15);
+// ✅ GPS Tracking
+function startGPS() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(position => {
+            currentLat = position.coords.latitude;
+            currentLon = position.coords.longitude;
 
-    if (!marker) {
-      marker = L.marker([lat, lon]).addTo(map);
+            document.getElementById("location").innerHTML =
+                `📍 Location: ${currentLat}, ${currentLon}`;
+
+            if (userMarker) map.removeLayer(userMarker);
+
+            userMarker = L.marker([currentLat, currentLon]).addTo(map)
+                .bindPopup("You are here").openPopup();
+        
+  map.setView([currentLat, currentLon], 14);
+        });
     } else {
-      marker.setLatLng([lat, lon]);
+        alert("GPS not supported");
+    }
+}
+
+// ✅ Search Location
+function searchLocation() {
+    const location = document.getElementById("searchBox").value.trim();
+
+    if (!location) {
+        alert("Enter location");
+        return;
     }
 
-    document.getElementById("info").innerText =
-      `📍 Location: ${lat}, ${lon}`;
-  });
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${location}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length > 0) {
+                const lat = data[0].lat;
+                const lon = data[0].lon;
+
+                document.getElementById("status").innerHTML = "✅ Location found";
+
+                if (destMarker) map.removeLayer(destMarker);
+
+                destMarker = L.marker([lat, lon]).addTo(map)
+                    .bindPopup("Destination").openPopup();
+
+                map.setView([lat, lon], 14);
+
+                // ✅ Calculate distance
+                calculateDistance(lat, lon);
+
+            } else {
+                document.getElementById("status").innerHTML = "❌ Location not found";
+            }
+        });
 }
 
-// ✅ Distance formula
+// ✅ Distance Calculation
+function calculateDistance(destLat, destLon) {
+    if (!currentLat || !currentLon) {
+        document.getElementById("distance").innerHTML = "Start GPS first";
+        return;
+    }
 
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
+    const R = 6371; // km
+    const dLat = (destLat - currentLat) * Math.PI / 180;
+    const dLon = (destLon - currentLon) * Math.PI / 180;
 
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(currentLat * Math.PI / 180) *
+        Math.cos(destLat * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    const distance = R * c;
+
+    document.getElementById("distance").innerHTML =
+        `🛣 Distance: ${distance.toFixed(2)} km`;
 }
 
-// ✅ Search + Distance + Time
-
-function searchLocation() {
-  let place = document.getElementById("destination").value;
-
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`)
-    .then(res => res.json())
-    .then(data => {
-      let destLat = parseFloat(data[0].lat);
-      let destLon = parseFloat(data[0].lon);
-
-      L.marker([destLat, destLon]).addTo(map);
-      map.setView([destLat, destLon], 13);
-
-      // ✅ Important check
-      if (marker) {
-        let userLat = marker.getLatLng().lat;
-        let userLon = marker.getLatLng().lng;
-
-        let dist = calculateDistance(userLat, userLon, destLat, destLon);
-        let time = (dist / 40) * 60; // minutes
-
-        document.getElementById("distance").innerHTML =
-          "📏 Distance: " + dist.toFixed(2) + " km | ⏱ Time: " + time.toFixed(0) + " mins";
-      } else {
-        document.getElementById("distance").innerHTML =
-          "⚠️ Please click 'Start GPS' first";
-      }
-    })
-    .catch(() => {
-      document.getElementById("distance").innerHTML =
-        "❌ Location not found";
-    });
-}
-
-
-// ✅ SOS SMS
+// ✅ SOS (Message + Call)
 function sendEmergency() {
-  let number = document.getElementById("familyNumber").value;
+    const phone = document.getElementById("familyNumber").value;
 
-  if (!number) {
-    alert("⚠️ Enter family number");
-    return;
-  }
+    if (!phone) {
+        alert("Enter phone number");
+        return;
+    }
 
-  let message = "🚨 Emergency! I need help. Please contact me.";
+    if (!currentLat || !currentLon) {
+        alert("GPS not ready");
+        return;
+    }
 
-  window.location.href = `sms:${number}?body=${encodeURIComponent(message)}`;
+    const message =
+        `🚨 EMERGENCY! I need help.\nMy Location:\nhttps://maps.google.com/?q=${currentLat},${currentLon}`;
+
+    window.location.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+
+    setTimeout(() => {
+        window.location.href = `tel:${phone}`;
+    }, 3000);
 }
 
-// ✅ Call
+// ✅ Call function
 function callFamily() {
-  let number = document.getElementById("familyNumber").value;
+    const phone = document.getElementById("familyNumber").value;
 
-  if (!number) {
-    alert("⚠️ Enter family number");
-    return;
-  }
+    if (!phone) {
+        alert("Enter phone number");
+        return;
+    }
 
-  window.location.href = `tel:${number}`;
+    window.location.href = `tel:${phone}`;
 }
-
 
 </script>
 
