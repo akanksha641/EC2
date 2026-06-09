@@ -58,6 +58,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let currentLat, currentLon;
 let userMarker, destMarker;
 
+// ✅ Load saved phone number
+window.onload = function() {
+    document.getElementById("familyNumber").value =
+        localStorage.getItem("family") || "";
+};
 // ✅ GPS Tracking
 function startGPS() {
     if (navigator.geolocation) {
@@ -105,23 +110,11 @@ function searchLocation() {
 
                 map.setView([lat, lon], 14);
 
-                // ✅ Calculate distance
-                calculateDistance(lat, lon);
-
-            } else {
-                document.getElementById("status").innerHTML = "❌ Location not found";
-            }
-        });
-}
-
-// ✅ Distance Calculation
+// ✅ Distance + Time
 function calculateDistance(destLat, destLon) {
-    if (!currentLat || !currentLon) {
-        document.getElementById("distance").innerHTML = "Start GPS first";
-        return;
-    }
+    if (!currentLat) return;
 
-    const R = 6371; // km
+    const R = 6371;
     const dLat = (destLat - currentLat) * Math.PI / 180;
     const dLon = (destLon - currentLon) * Math.PI / 180;
 
@@ -135,11 +128,26 @@ function calculateDistance(destLat, destLon) {
 
     const distance = R * c;
 
+    let speed = 30; // km/h
+    let time = Math.round((distance / speed) * 60);
+
     document.getElementById("distance").innerHTML =
-        `🛣 Distance: ${distance.toFixed(2)} km`;
+        `🛣 Distance: ${distance.toFixed(2)} km <br>⏱ Time: ${time} mins`;
 }
 
-// ✅ SOS (Message + Call)
+// ✅ Route Line
+function drawRoute(destLat, destLon) {
+    if (!currentLat) return;
+
+    if (routeLine) map.removeLayer(routeLine);
+
+    routeLine = L.polyline([
+        [currentLat, currentLon],
+        [destLat, destLon]
+    ], { color: 'blue' }).addTo(map);
+}
+  
+// ✅ SOS
 function sendEmergency() {
     const phone = document.getElementById("familyNumber").value;
 
@@ -148,32 +156,40 @@ function sendEmergency() {
         return;
     }
 
-    if (!currentLat || !currentLon) {
-        alert("GPS not ready");
-        return;
-    }
+    // ✅ Save number
+    localStorage.setItem("family", phone);
 
-    const message =
-        `🚨 EMERGENCY! I need help.\nMy Location:\nhttps://maps.google.com/?q=${currentLat},${currentLon}`;
+    const msg =
+        `🚨 EMERGENCY!\nI need help.\nLocation:\nhttps://maps.google.com/?q=${currentLat},${currentLon}`;
 
-    window.location.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+    window.location.href = `sms:${phone}?body=${encodeURIComponent(msg)}`;
 
     setTimeout(() => {
         window.location.href = `tel:${phone}`;
     }, 3000);
 }
 
-// ✅ Call function
+// ✅ Call
 function callFamily() {
     const phone = document.getElementById("familyNumber").value;
-
-    if (!phone) {
-        alert("Enter phone number");
-        return;
-    }
-
     window.location.href = `tel:${phone}`;
 }
+
+// ✅ Auto alert every 5 mins
+function autoAlert() {
+    setInterval(() => {
+        if (currentLat) {
+            sendEmergency();
+        }
+    }, 300000);
+}
+
+// ✅ Alarm
+function playAlarm() {
+    let audio = new Audio("https://www.soundjay.com/button/beep-07.wav");
+    audio.play();
+}
+        
 
 </script>
 
